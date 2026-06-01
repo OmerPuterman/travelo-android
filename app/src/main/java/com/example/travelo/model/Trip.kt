@@ -2,9 +2,12 @@ package com.example.travelo.model
 
 data class Trip(
     val tripId: String? = null,
-    val guideId: String,
+    val guideId: String? = null,
     val destination: String,
-    val startDate: String,
+    val startDate: String? = null,
     val budget: Double,
-    val numberOfTravelers: Int
+    val maxTimeMinutes: Int,
+    val startLocation: String,
+    val endLocation: String,
+    val numberOfTravelers: Int = 1 // <-- ADD THIS LINE
 )

@@ -7,73 +7,99 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-
-// Import your organized packages
-import com.example.travelo.network.RetrofitInstance
-import com.example.travelo.ui.CreateTripScreen
-import com.example.travelo.ui.DashboardScreen
-import com.example.travelo.ui.Screen
-import com.example.travelo.ui.TripDetailsScreen
+import com.example.travelo.ui.*
+import com.example.travelo.ui.theme.TraveloTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
-            // 1. Create the Navigation Controller
-            val navController = rememberNavController()
-
-            MaterialTheme {
+            TraveloTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    val navController = rememberNavController()
 
-                    // 2. Setup the NavHost (The map of your app)
-                    NavHost(navController = navController, startDestination = Screen.Dashboard.route) {
+                    NavHost(navController = navController, startDestination = "login") {
 
-                        // --- SCREEN 1: DASHBOARD ---
-                        composable(Screen.Dashboard.route) {
-                            DashboardScreen(
-                                onCreateTripClick = {
-                                    navController.navigate(Screen.CreateTrip.route)
-                                },
-                                onTripClick = { tripId ->
-                                    // Navigate to details with the ID
-                                    navController.navigate(Screen.TripDetails.createRoute(tripId))
+                        // --- 1. LOGIN ---
+                        composable("login") {
+                            LoginScreen(
+                                onLoginSuccess = { role ->
+                                    val dest = when (role) {
+                                        "GUIDE" -> "guide_dashboard"
+                                        "BUSINESS" -> "business_dashboard"
+                                        else -> "traveler_dashboard"
+                                    }
+                                    navController.navigate(dest) {
+                                        popUpTo("login") { inclusive = true }
+                                    }
                                 }
                             )
                         }
 
-                        // --- SCREEN 2: CREATE TRIP ---
-                        composable(Screen.CreateTrip.route) {
-                            CreateTripScreen(
-                                api = RetrofitInstance.api, // Use the singleton we made
-                                onTripCreated = {
-                                    navController.popBackStack() // Go back to Dashboard
-                                },
-                                onBack = {
-                                    navController.popBackStack()
+                        // --- 2. DASHBOARDS ---
+                        composable("guide_dashboard") {
+                            GuideDashboardScreen(
+                                onNavigateToCreate = { navController.navigate("create_trip") },
+                                onNavigateToDetails = { tripId -> navController.navigate("route_selection/$tripId") }                            )
+                        }
+
+                        composable("business_dashboard") {
+                            BusinessDashboardScreen(
+                                onNavigateToAddOffer = { navController.navigate("add_offer") },
+                                onLogout = {
+                                    navController.navigate("login") {
+                                        // FIXED: Replaced navController.graph.id with strict String route
+                                        popUpTo("business_dashboard") { inclusive = true }
+                                    }
                                 }
                             )
                         }
 
-                        // --- SCREEN 3: TRIP DETAILS ---
-                        composable(
-                            route = Screen.TripDetails.route,
-                            arguments = listOf(navArgument("tripId") { type = NavType.StringType })
-                        ) { backStackEntry ->
-                            // Extract the tripId from the URL
-                            val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+                        composable("traveler_dashboard") {
+                            TravelerDashboardScreen(
+                                onNavigateToItinerary = { tripId -> navController.navigate("traveler_itinerary/$tripId") },
+                                onLogout = {
+                                    navController.navigate("login") {
+                                        // FIXED: Replaced navController.graph.id with strict String route
+                                        popUpTo("traveler_dashboard") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
 
-                            TripDetailsScreen(
+                        // --- 3. SHARED & TRIP FLOWS ---
+                        composable("create_trip") {
+                            CreateTripScreen(onBack = { navController.popBackStack() })
+                        }
+
+                        composable("add_offer") {
+                            AddOfferScreen(onBack = { navController.popBackStack() })
+                        }
+
+                        composable("route_selection/{tripId}") { backStackEntry ->
+                            val tripId = backStackEntry.arguments?.getString("tripId") ?: "GLOBAL_MARKETPLACE"
+                            RouteSelectionScreen(
                                 tripId = tripId,
-                                onBack = {
-                                    navController.popBackStack()
+                                onBack = { navController.popBackStack() },
+                                onRouteGenerated = { id ->
+                                    navController.navigate("trip_details/$id") {
+                                        popUpTo("route_selection/{tripId}") { inclusive = true }
+                                    }
                                 }
                             )
+                        }
+
+                        composable("trip_details/{tripId}") { backStackEntry ->
+                            val tripId = backStackEntry.arguments?.getString("tripId") ?: "0"
+                            TripDetailsScreen(tripId = tripId, onBack = { navController.popBackStack() })
+                        }
+
+                        composable("traveler_itinerary/{tripId}") { backStackEntry ->
+                            val tripId = backStackEntry.arguments?.getString("tripId") ?: "0"
+                            TravelerItineraryScreen(tripId = tripId, onBack = { navController.popBackStack() })
                         }
                     }
                 }
